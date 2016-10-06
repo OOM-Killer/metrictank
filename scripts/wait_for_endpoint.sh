@@ -1,15 +1,16 @@
 #!/bin/sh
 
+
 WAIT_TIMEOUT=${WAIT_TIMEOUT:-10}
 
 for endpoint in $(echo $WAIT_HOSTS | tr "," "\n"); do
-  _start_time=$(date +%s)  
+  _start_time=$(date +%s)
   while true; do
     _now=$(date +%s)
     _run_time=$(( $_now - $_start_time ))
     if [ $_run_time -gt $WAIT_TIMEOUT ]; then
         echo "timed out waiting for $endpoint"
-        break 
+        exit 1
     fi
     echo "waiting for $endpoint to become up..."
     host=${endpoint%:*}
@@ -19,6 +20,4 @@ for endpoint in $(echo $WAIT_HOSTS | tr "," "\n"); do
   done
 done
 
-exec /usr/bin/metrictank $@
-
-
+exec $@
