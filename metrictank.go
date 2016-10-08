@@ -105,7 +105,7 @@ var (
 	proftrigPath       = flag.String("proftrigger-path", "/tmp", "path to store triggered profiles")
 	proftrigFreqStr    = flag.String("proftrigger-freq", "60s", "inspect status frequency. set to 0 to disable")
 	proftrigMinDiffStr = flag.String("proftrigger-min-diff", "1h", "minimum time between triggered profiles")
-	proftrigHeapThresh = flag.Int("proftrigger-heap-thresh", 10000000, "if this many bytes allocated, trigger a profile")
+	proftrigHeapThresh = flag.Int("proftrigger-heap-thresh", 25000000000, "if this many bytes allocated, trigger a profile")
 
 	logMinDurStr = flag.String("log-min-dur", "5min", "only log incoming requests if their timerange is at least this duration. Use 0 to disable")
 
@@ -122,14 +122,24 @@ var (
 	reqHandleDuration met.Timer
 	inItems           met.Meter
 	points            met.Gauge
-	alloc             met.Gauge
-	totalAlloc        met.Gauge
-	sysBytes          met.Gauge
-	clusterPrimary    met.Gauge
-	clusterPromoWait  met.Gauge
-	gcNum             met.Gauge // go GC
-	gcDur             met.Gauge // go GC
-	gcCpuFraction     met.Gauge // go GC
+
+	// metric bytes_alloc.not_freed is a gauge of currently allocated (within the runtime) memory.
+	// it does not include freed data so it drops at every GC run.
+	alloc met.Gauge
+	// metric bytes_alloc.incl_freed is a counter of total amount of bytes allocated during process lifetime. (incl freed data)
+	totalAlloc met.Gauge
+	// metric bytes_sys is the amount of bytes currently obtained from the system by the process.  This is what the profiletrigger looks at.
+	sysBytes       met.Gauge
+	clusterPrimary met.Gauge
+
+	// metric cluster.promotion_wait is how long a candidate (secondary node) has to wait until it can become a primary
+	// When the timer becomes 0 it means the in-memory buffer has been able to fully populate so that if you stop a primary
+	// and it was able to save its complete chunks, this node will be able to take over without dataloss.
+	// You can upgrade a candidate to primary while the timer is not 0 yet, it just means it may have missing data in the chunks that it will save.
+	clusterPromoWait met.Gauge
+	gcNum            met.Gauge // go GC
+	gcDur            met.Gauge // go GC
+	gcCpuFraction    met.Gauge // go GC
 
 	promotionReadyAtChan chan uint32
 )
